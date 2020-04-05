@@ -1,0 +1,156 @@
+package com.postman.calendify.models;
+
+import java.time.LocalDate;
+import java.time.LocalTime;
+
+import javax.persistence.Entity;
+import javax.persistence.FetchType;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.Table;
+
+@Entity
+@Table(name = "slot")
+public class Slot {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	public long id;
+	
+	public LocalDate bookDate;
+	
+	public LocalTime startTime;
+	
+	public LocalTime endTime;
+	
+	public boolean booked;
+	
+	@ManyToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "user_id")
+	public UserEntry userEntry;
+
+	public Slot() {
+		super();
+	}
+
+	public Slot(long id, LocalDate date, LocalTime startTime, LocalTime endTime, UserEntry userEntry) {
+		super();
+		this.id = id;
+		this.bookDate = date;
+		this.startTime = startTime;
+		this.endTime = endTime;
+		this.userEntry = userEntry;
+		this.booked = false;
+	}
+
+	public Slot(LocalDate date, LocalTime startTime, LocalTime endTime, UserEntry userEntry) {
+		super();
+		this.bookDate = date;
+		this.startTime = startTime;
+		this.endTime = endTime;
+		this.userEntry = userEntry;
+		this.booked =  false;
+	}
+
+	public long getId() {
+		return id;
+	}
+
+	public void setId(long id) {
+		this.id = id;
+	}
+
+	public LocalDate getBookDate() {
+		return bookDate;
+	}
+
+	public void setBookDate(LocalDate date) {
+		this.bookDate = date;
+	}
+
+	public LocalTime getStartTime() {
+		return startTime;
+	}
+
+	public void setStartTime(LocalTime startTime) {
+		this.startTime = startTime;
+	}
+
+	public LocalTime getEndTime() {
+		return endTime;
+	}
+
+	public void setEndTime(LocalTime endTime) {
+		this.endTime = endTime;
+	}
+
+	public UserEntry getUserEntry() {
+		return userEntry;
+	}
+
+	public void setUserEntry(UserEntry userEntry) {
+		this.userEntry = userEntry;
+	}
+
+	public boolean isBooked() {
+		return booked;
+	}
+
+	public void setBooked(boolean booked) {
+		this.booked = booked;
+	}
+
+	@Override
+	public int hashCode() {
+		final int prime = 31;
+		int result = 1;
+		result = prime * result + (booked ? 1231 : 1237);
+		result = prime * result + ((bookDate == null) ? 0 : bookDate.hashCode());
+		result = prime * result + ((endTime == null) ? 0 : endTime.hashCode());
+		result = prime * result + (int) (id ^ (id >>> 32));
+		result = prime * result + ((startTime == null) ? 0 : startTime.hashCode());
+		result = prime * result + ((userEntry == null) ? 0 : userEntry.hashCode());
+		return result;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (this == obj)
+			return true;
+		if (obj == null)
+			return false;
+		if (getClass() != obj.getClass())
+			return false;
+		Slot other = (Slot) obj;
+		if (booked != other.booked)
+			return false;
+		if (bookDate == null) {
+			if (other.bookDate != null)
+				return false;
+		} else if (!bookDate.equals(other.bookDate))
+			return false;
+		if (endTime == null) {
+			if (other.endTime != null)
+				return false;
+		} else if (!endTime.equals(other.endTime))
+			return false;
+		if (id != other.id)
+			return false;
+		if (startTime == null) {
+			if (other.startTime != null)
+				return false;
+		} else if (!startTime.equals(other.startTime))
+			return false;
+		if (userEntry == null) {
+			if (other.userEntry != null)
+				return false;
+		} else if (!userEntry.equals(other.userEntry))
+			return false;
+		return true;
+	}
+
+	
+}
