@@ -9,10 +9,14 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import javax.servlet.http.HttpSession;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.postman.calendify.exception.CalendifyException;
 import com.postman.calendify.models.Book;
+import com.postman.calendify.models.Roles;
 import com.postman.calendify.models.Slot;
 import com.postman.calendify.models.UserEntry;
 import com.postman.calendify.repository.IBookRepository;
@@ -22,7 +26,7 @@ import com.postman.calendify.repository.IUserEntryRepository;
 @Service
 public class UserEntryService {
 
-	private final static String DATE_PATTERN = "[0-9]{4}-((0[1-9])|(1[1-2]))-(([0-2][1-9])|(31))";
+	private final static String DATE_PATTERN = "[0-9]{4}-((0[1-9])|(1[1-2]))-(([0-2][1-9])|(31)|(10)|(20))";
 	private final static String TIME_PATTERN = "((1[0-9])|(0?[1-9])|(2[0-4])):([0-5][0-9])";
 
 	@Autowired
@@ -34,56 +38,57 @@ public class UserEntryService {
 	@Autowired
 	private IBookRepository bookRepo;
 
-	public void addSlots(List<Slot> slots, String username, long userId) {
-		UserEntry userEntry = userEntryRepo.findByUsername(username);
-		if (userEntry == null) {
-			userEntry = new UserEntry(userId, username);
-			userEntryRepo.save(userEntry);
-		}
-		Set<Slot> duplicateCheck = new HashSet<>();
-		for (Slot slot : slots) {
-			slot.setUserEntry(userEntry);
-			UserEntry tempUser = userEntryRepo.findByUsernameAndSlotsBookDateAndSlotsStartTimeGreaterThanEqual(
-					userEntry.getUsername(), slot.getBookDate(), slot.getStartTime());
-			if (tempUser != null && checkOverlap(tempUser.getSlots(), slot.getStartTime(), slot.getEndTime())) {
-				// add error
-			} else if (!duplicateCheck.add(slot)) {
-				// add error
-			} else if (slot.getStartTime().getHour() + 1 == slot.getEndTime().getHour()
-					&& slot.getStartTime().getMinute() == slot.getEndTime().getMinute()) {
-				slotRepo.save(slot);
-			} else {
-				// add error- not one hour slots
+	public boolean addSlots(List<Slot> slots, HttpSession httpSession) throws CalendifyException {
+		loginCheck(httpSession);
+		Object usernameObj = httpSession.getAttribute("username");
+		Object userIdObj = httpSession.getAttribute("userid");
+		String userRole = (String) httpSession.getAttribute("userrole");
+		if(userRole.equals(Roles.THERAPIST.getRole())) {
+			String username = (String) usernameObj;
+			long userId = (long) userIdObj;
+			UserEntry userEntry = userEntryRepo.findByUsername(username);
+			if (userEntry == null) {
+				userEntry = new UserEntry(userId, username);
+				userEntryRepo.save(userEntry);
 			}
+			Set<Slot> duplicateCheck = new HashSet<>();
+			for (Slot slot : slots) {
+				slot.setUserEntry(userEntry);
+				UserEntry tempUser = userEntryRepo.findByUsernameAndSlotsBookDateAndSlotsStartTimeGreaterThanEqual(
+						userEntry.getUsername(), slot.getBookDate(), slot.getStartTime());
+				if (tempUser != null && checkOverlap(tempUser.getSlots(), slot.getStartTime(), slot.getEndTime())) {
+					throw new CalendifyException(422, "Time slots overlap");
+				} else if (!duplicateCheck.add(slot)) {
+					throw new CalendifyException(422, "Duplicate Time Slots");
+				} else if (slot.getStartTime().getHour() + 1 == slot.getEndTime().getHour()
+						&& slot.getStartTime().getMinute() == slot.getEndTime().getMinute()) {
+					slotRepo.save(slot);
+				} else {
+					throw new CalendifyException(422, "Time slot greater than 1 hour");
+				}
+			}
+			return true;
 		}
+		throw new CalendifyException(403, "You don't have permission to add sessions");
 	}
 
-	public int availableSlots(String username, String date) throws Exception {
-		try {
-			LocalDate bookDate = LocalDate.parse(date);
-			UserEntry entry = userEntryRepo.findByUsernameAndSlotsBookDate(username, bookDate);
-			if (entry == null || entry.getSlots() == null) {
-				return 0;
-			}
-			return entry.getSlots().size();
-		} catch (DateTimeParseException ex) {
-			throw new Exception("Date is not in yyyy-MM-dd format.");// add
-																		// error
+	public boolean bookSlots(String therapistName, String date, String startTime, String endTime, HttpSession httpSession) throws CalendifyException{
+		loginCheck(httpSession);
+		String username = (String) httpSession.getAttribute("username");
+		if (username.equals(therapistName)) {
+			throw new CalendifyException(422, "Can not book your own session");
 		}
-	}
-
-	public void bookSlots(String username, String therapistName, String date, String startTime, String endTime) {
 		if (!checkPattern(DATE_PATTERN, date)) {
-			// add error
+			throw new CalendifyException(422, "Invalid date format");
 		} else if (!checkPattern(TIME_PATTERN, startTime) || !checkPattern(TIME_PATTERN, endTime)) {
-			// add error
+			throw new CalendifyException(422, "Invalid time format");
 		} else {
 			UserEntry userEntry = userEntryRepo.findByUsername(therapistName);
 			if (userEntry != null) {
 				List<Slot> slots = slotRepo.findAllByBookDateAndStartTimeAndEndTimeAndBookedAndUserEntryId(
 						LocalDate.parse(date), LocalTime.parse(startTime), LocalTime.parse(endTime), false,
 						userEntry.getId());
-				if (slots != null) {
+				if (slots != null && !slots.isEmpty()) {
 					for (Slot slot : slots) {
 						slot.setBooked(true);
 						slotRepo.save(slot);
@@ -91,12 +96,13 @@ public class UserEntryService {
 						bookRepo.save(book);
 					}
 				} else {
-					// add error - session not available
+					return false;
 				}
 			} else {
-				// add error - session not available
+				return false;
 			}
 		}
+		return true;
 	}
 
 	private boolean checkOverlap(List<Slot> slots, LocalTime startTime, LocalTime endTime) {
@@ -116,5 +122,13 @@ public class UserEntryService {
 		Pattern r = Pattern.compile(pattern);
 		Matcher m = r.matcher(value);
 		return m.matches();
+	}
+	
+	private void loginCheck(HttpSession httpSession) throws CalendifyException{
+		Object usernameObj = httpSession.getAttribute("username");
+		Object userIdObj = httpSession.getAttribute("userid");
+		if(httpSession.isNew() || usernameObj == null || userIdObj == null) {
+			throw new CalendifyException(403, "Please login and try again");
+		}
 	}
 }

@@ -12,13 +12,18 @@ import javax.persistence.Id;
 import javax.persistence.OneToMany;
 import javax.persistence.Table;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.databind.annotation.JsonSerialize;
+
 @Entity
 @Table(name = "userentry")
 public class UserEntry {
 
 	@Id
+	@JsonIgnore
 	private long id;
 	
+	@JsonIgnore
 	private String username;
 	
 	@OneToMany(mappedBy = "userEntry", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
