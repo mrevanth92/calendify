@@ -3,6 +3,7 @@ package com.postman.calendify.models;
 import java.time.LocalDate;
 import java.time.LocalTime;
 
+import javax.persistence.CascadeType;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
@@ -10,6 +11,7 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.JoinColumn;
 import javax.persistence.ManyToOne;
+import javax.persistence.OneToOne;
 import javax.persistence.Table;
 
 @Entity
@@ -27,6 +29,9 @@ public class Slot {
 	public LocalTime endTime;
 	
 	public boolean booked;
+	
+	@OneToOne(mappedBy = "slot", cascade = CascadeType.ALL)
+	private Book book;
 	
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "user_id")
@@ -107,8 +112,9 @@ public class Slot {
 	public int hashCode() {
 		final int prime = 31;
 		int result = 1;
-		result = prime * result + (booked ? 1231 : 1237);
+		result = prime * result + ((book == null) ? 0 : book.hashCode());
 		result = prime * result + ((bookDate == null) ? 0 : bookDate.hashCode());
+		result = prime * result + (booked ? 1231 : 1237);
 		result = prime * result + ((endTime == null) ? 0 : endTime.hashCode());
 		result = prime * result + (int) (id ^ (id >>> 32));
 		result = prime * result + ((startTime == null) ? 0 : startTime.hashCode());
@@ -125,12 +131,17 @@ public class Slot {
 		if (getClass() != obj.getClass())
 			return false;
 		Slot other = (Slot) obj;
-		if (booked != other.booked)
+		if (book == null) {
+			if (other.book != null)
+				return false;
+		} else if (!book.equals(other.book))
 			return false;
 		if (bookDate == null) {
 			if (other.bookDate != null)
 				return false;
 		} else if (!bookDate.equals(other.bookDate))
+			return false;
+		if (booked != other.booked)
 			return false;
 		if (endTime == null) {
 			if (other.endTime != null)
@@ -151,6 +162,4 @@ public class Slot {
 			return false;
 		return true;
 	}
-
-	
 }

@@ -28,18 +28,21 @@ public class UserController {
 	
 	@PostMapping("/signin")
 	public String userSignin(@RequestBody User user, HttpSession session) {
+		if (!session.isNew() && session.getAttribute("username") != null) {
+			return "User already signed in";
+		}
 		if (userService.authenticateUser(user)) {
 			session.setAttribute("username", user.getUsername());
 			session.setAttribute("userid", user.getId());
 			session.setAttribute("userrole", user.getRole());
-			return "User has signed in";
+			return "User is signed in";
 		}
 		return "Username or Password is wrong";
 	}
 	
 	@DeleteMapping("/signout")
 	public String userSignout(HttpSession session) {
-		if (session.isNew()) {
+		if (session.isNew() && session.getAttribute("username") == null) {
 			return "No user has signed in";
 		}
 		session.invalidate();

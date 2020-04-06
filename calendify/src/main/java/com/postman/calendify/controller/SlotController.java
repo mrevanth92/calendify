@@ -1,5 +1,8 @@
 package com.postman.calendify.controller;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+
 import javax.servlet.http.HttpSession;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,19 +21,8 @@ public class SlotController {
 	@Autowired
 	public UserEntryService userEntryService;
 
-	@GetMapping("/slots")
-	public String getSlots(HttpSession session) {
-		if (session.isNew()) {
-			return "Please login and try again";
-		}
-		return "User Signed Up";
-	}
-
 	@GetMapping("/availableslots/{username}/{date}")
 	public int getAvaialableSlots(@PathVariable("username") String username, @PathVariable String date, HttpSession session) {
-		if (session.isNew()) {
-			return 0;
-		}
 		try {
 			return userEntryService.availableSlots(username, date);
 		} catch (Exception e) {
@@ -46,19 +38,31 @@ public class SlotController {
 		if(httpSesssion.isNew() || usernameObj == null || userIdObj == null) {
 			return "Please login and try again";
 		}
-		String username = (String) usernameObj;
-		long userId = (long) userIdObj;
 		String userRole = (String) httpSesssion.getAttribute("userrole");
-		userEntry.setUsername(username);
 		if(userRole.equals("therapist")) {
+			String username = (String) usernameObj;
+			long userId = (long) userIdObj;
 			userEntryService.addSlots(userEntry.getSlots(), username, userId);
-			return "Slots added successfully";
+			return "Sessions added successfully";
 		}
-		return "You don't have permission to add slots";
+		return "You don't have permission to add sessions";
 	}
-
-	@GetMapping("/checkSession")
-	public String getSessionId(HttpSession session) {
-		return session.getId();
+	
+	@GetMapping("/bookslot/{therapistUsername}/{date}/{startTime}/{endTime}")
+	public String bookSlots(@PathVariable("therapistUsername") String therapistUsername,
+			@PathVariable("date") String bookDate, 
+			@PathVariable("startTime") String startTime,
+			@PathVariable("endTime") String endTime,
+			HttpSession httpSesssion) {
+		Object usernameObj = httpSesssion.getAttribute("username");
+		if (httpSesssion.isNew() || usernameObj == null) {
+			return "Please login and try again";
+		}
+		String username = (String) usernameObj;
+		if (username.equals(therapistUsername)) {
+			return "Can not book your own session";
+		}
+		userEntryService.bookSlots(username, therapistUsername, bookDate, startTime, endTime);
+		return "Session Booked";
 	}
 }

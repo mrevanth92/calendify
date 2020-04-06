@@ -1,38 +1,38 @@
 package com.postman.calendify.models;
 
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import javax.persistence.CascadeType;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
 import javax.persistence.Id;
-import javax.persistence.OneToMany;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.OneToOne;
 import javax.persistence.Table;
 
 @Entity
-@Table(name = "userentry")
-public class UserEntry {
+@Table
+public class Book {
 
 	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private long id;
 	
 	private String username;
 	
-	@OneToMany(mappedBy = "userEntry", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-	private List<Slot> slots;
-	
-	public UserEntry() {
+	@OneToOne(fetch = FetchType.LAZY)
+	@JoinColumn(name = "slot_id")
+	private Slot slot;
+
+	public Book() {
 		super();
 	}
 
-	public UserEntry(long id, String username, Slot... slots) {
+	public Book(String username, Slot slot) {
+		super();
 		this.id = id;
 		this.username = username;
-		this.slots = Stream.of(slots).collect(Collectors.toList());
-		this.slots.forEach(slot -> slot.setUserEntry(this));
+		this.slot = slot;
 	}
 
 	public long getId() {
@@ -51,12 +51,12 @@ public class UserEntry {
 		this.username = username;
 	}
 
-	public List<Slot> getSlots() {
-		return slots;
+	public Slot getSlot() {
+		return slot;
 	}
 
-	public void setSlots(List<Slot> slots) {
-		this.slots = slots;
+	public void setSlot(Slot slot) {
+		this.slot = slot;
 	}
 
 	@Override
@@ -64,7 +64,7 @@ public class UserEntry {
 		final int prime = 31;
 		int result = 1;
 		result = prime * result + (int) (id ^ (id >>> 32));
-		result = prime * result + ((slots == null) ? 0 : slots.hashCode());
+		result = prime * result + ((slot == null) ? 0 : slot.hashCode());
 		result = prime * result + ((username == null) ? 0 : username.hashCode());
 		return result;
 	}
@@ -77,13 +77,13 @@ public class UserEntry {
 			return false;
 		if (getClass() != obj.getClass())
 			return false;
-		UserEntry other = (UserEntry) obj;
+		Book other = (Book) obj;
 		if (id != other.id)
 			return false;
-		if (slots == null) {
-			if (other.slots != null)
+		if (slot == null) {
+			if (other.slot != null)
 				return false;
-		} else if (!slots.equals(other.slots))
+		} else if (!slot.equals(other.slot))
 			return false;
 		if (username == null) {
 			if (other.username != null)
@@ -92,6 +92,4 @@ public class UserEntry {
 			return false;
 		return true;
 	}
-	
-	
 }
