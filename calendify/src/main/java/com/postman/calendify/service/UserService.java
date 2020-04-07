@@ -1,7 +1,7 @@
 package com.postman.calendify.service;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 import javax.servlet.http.HttpSession;
 
@@ -23,8 +23,13 @@ public class UserService {
 		if (authenticateUser(user)) {
 			throw new CalendifyException(409, "User already exsits");
 		}
-		for(Roles role : Roles.values()) {
-			if(role.getRole().equals(user.getRole())) {
+		for (Roles role : Roles.values()) {
+			if (role.getRole().equals(user.getRole())) {
+				if (user.getPwd() == null || user.getUsername() == null || user.getFirstName() == null
+						|| user.getPwd() == null) {
+					throw new CalendifyException(422, "User missing one of the required fields");
+				}
+				user.setPwd(hash(user.getPwd()));
 				userRepo.save(user);
 				return;
 			}
@@ -59,9 +64,27 @@ public class UserService {
 		User userFromRepo = userRepo.findByUsername(user.getUsername());
 		if (userFromRepo != null) {
 			user.setId(userFromRepo.getId());
-			user.setRole(userFromRepo.getRole());;
-		}		
+			user.setRole(userFromRepo.getRole());
+			;
+		}
 		return userFromRepo != null && userFromRepo.getUsername().equals(user.getUsername())
-				&& userFromRepo.getPwd().equals(user.getPwd());
+				&& userFromRepo.getPwd().equals(hash(user.getPwd()));
+	}
+
+	private String hash(String password) throws CalendifyException {
+		StringBuilder hash = new StringBuilder();
+		try {
+			MessageDigest sha = MessageDigest.getInstance("SHA-1");
+			byte[] hashedBytes = sha.digest(password.getBytes());
+			char[] digits = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' };
+			for (int idx = 0; idx < hashedBytes.length; ++idx) {
+				byte b = hashedBytes[idx];
+				hash.append(digits[(b & 0xf0) >> 4]);
+				hash.append(digits[b & 0x0f]);
+			}
+		} catch (NoSuchAlgorithmException e) {
+			throw new CalendifyException(500, "Error while hashing passwords");
+		}
+		return hash.toString();
 	}
 }

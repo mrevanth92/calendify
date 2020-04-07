@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 
 import javax.persistence.CascadeType;
+import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.FetchType;
 import javax.persistence.GeneratedValue;
@@ -25,10 +26,13 @@ public class Slot {
 	@JsonIgnore
 	public long id;
 	
+	@Column(nullable = false)
 	public LocalDate bookDate;
 	
+	@Column(nullable = false)
 	public LocalTime startTime;
 	
+	@Column(nullable = false)
 	public LocalTime endTime;
 	
 	public boolean booked;

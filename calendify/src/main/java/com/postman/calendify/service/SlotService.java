@@ -2,7 +2,6 @@ package com.postman.calendify.service;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.format.DateTimeParseException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -16,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import com.postman.calendify.exception.CalendifyException;
 import com.postman.calendify.models.Book;
+import com.postman.calendify.models.BookSlot;
 import com.postman.calendify.models.Roles;
 import com.postman.calendify.models.Slot;
 import com.postman.calendify.models.UserEntry;
@@ -24,7 +24,7 @@ import com.postman.calendify.repository.ISlotRepository;
 import com.postman.calendify.repository.IUserEntryRepository;
 
 @Service
-public class UserEntryService {
+public class SlotService {
 
 	private final static String DATE_PATTERN = "[0-9]{4}-((0[1-9])|(1[1-2]))-(([0-2][1-9])|(31)|(10)|(20))";
 	private final static String TIME_PATTERN = "((1[0-9])|(0?[1-9])|(2[0-4])):([0-5][0-9])";
@@ -43,7 +43,7 @@ public class UserEntryService {
 		Object usernameObj = httpSession.getAttribute("username");
 		Object userIdObj = httpSession.getAttribute("userid");
 		String userRole = (String) httpSession.getAttribute("userrole");
-		if(userRole.equals(Roles.THERAPIST.getRole())) {
+		if (userRole.equals(Roles.THERAPIST.getRole())) {
 			String username = (String) usernameObj;
 			long userId = (long) userIdObj;
 			UserEntry userEntry = userEntryRepo.findByUsername(username);
@@ -53,40 +53,48 @@ public class UserEntryService {
 			}
 			Set<Slot> duplicateCheck = new HashSet<>();
 			for (Slot slot : slots) {
+				if(slot.getBookDate() == null || slot.getStartTime() == null || slot.getEndTime() == null) {
+					throw new CalendifyException(422, "Session missing required fields");
+				}
 				slot.setUserEntry(userEntry);
 				UserEntry tempUser = userEntryRepo.findByUsernameAndSlotsBookDateAndSlotsStartTimeGreaterThanEqual(
 						userEntry.getUsername(), slot.getBookDate(), slot.getStartTime());
 				if (tempUser != null && checkOverlap(tempUser.getSlots(), slot.getStartTime(), slot.getEndTime())) {
-					throw new CalendifyException(422, "Time slots overlap");
+					throw new CalendifyException(422, "Session time slots overlap");
 				} else if (!duplicateCheck.add(slot)) {
-					throw new CalendifyException(422, "Duplicate Time Slots");
-				} else if (slot.getStartTime().getHour() + 1 == slot.getEndTime().getHour()
-						&& slot.getStartTime().getMinute() == slot.getEndTime().getMinute()) {
-					slotRepo.save(slot);
-				} else {
-					throw new CalendifyException(422, "Time slot greater than 1 hour");
+					throw new CalendifyException(422, "Duplicate Session time Slots");
+				} else if (!(slot.getStartTime().getHour() + 1 == slot.getEndTime().getHour()
+						&& slot.getStartTime().getMinute() == slot.getEndTime().getMinute())) {
+					throw new CalendifyException(422, "Session time slot greater than 1 hour");
 				}
+			}
+			for (Slot slot:slots) {
+				slotRepo.save(slot);
 			}
 			return true;
 		}
 		throw new CalendifyException(403, "You don't have permission to add sessions");
 	}
 
-	public boolean bookSlots(String therapistName, String date, String startTime, String endTime, HttpSession httpSession) throws CalendifyException{
+	public boolean bookSlots(String therapistName, BookSlot bookSlot, HttpSession httpSession)
+			throws CalendifyException {
 		loginCheck(httpSession);
 		String username = (String) httpSession.getAttribute("username");
 		if (username.equals(therapistName)) {
 			throw new CalendifyException(422, "Can not book your own session");
 		}
-		if (!checkPattern(DATE_PATTERN, date)) {
-			throw new CalendifyException(422, "Invalid date format");
-		} else if (!checkPattern(TIME_PATTERN, startTime) || !checkPattern(TIME_PATTERN, endTime)) {
-			throw new CalendifyException(422, "Invalid time format");
+		if(bookSlot.getDate() == null || bookSlot.getEndTime() == null || bookSlot.getStartTime() == null) {
+			throw new CalendifyException(422, "Missing required fields. Required Fields : BookDate,EndTime,StartTime.");
+		}
+		if (!checkPattern(DATE_PATTERN, bookSlot.getDate())) {
+			throw new CalendifyException(422, "Invalid date format.Valid Date Format:yyyy-MM-dd");
+		} else if (!checkPattern(TIME_PATTERN, bookSlot.getStartTime()) || !checkPattern(TIME_PATTERN, bookSlot.getEndTime())) {
+			throw new CalendifyException(422, "Invalid time format.Valid Time Format:HH:mm");
 		} else {
 			UserEntry userEntry = userEntryRepo.findByUsername(therapistName);
 			if (userEntry != null) {
 				List<Slot> slots = slotRepo.findAllByBookDateAndStartTimeAndEndTimeAndBookedAndUserEntryId(
-						LocalDate.parse(date), LocalTime.parse(startTime), LocalTime.parse(endTime), false,
+						LocalDate.parse(bookSlot.getDate()), LocalTime.parse(bookSlot.getStartTime()), LocalTime.parse(bookSlot.getEndTime()), false,
 						userEntry.getId());
 				if (slots != null && !slots.isEmpty()) {
 					for (Slot slot : slots) {
@@ -123,11 +131,11 @@ public class UserEntryService {
 		Matcher m = r.matcher(value);
 		return m.matches();
 	}
-	
-	private void loginCheck(HttpSession httpSession) throws CalendifyException{
+
+	private void loginCheck(HttpSession httpSession) throws CalendifyException {
 		Object usernameObj = httpSession.getAttribute("username");
 		Object userIdObj = httpSession.getAttribute("userid");
-		if(httpSession.isNew() || usernameObj == null || userIdObj == null) {
+		if (httpSession.isNew() || usernameObj == null || userIdObj == null) {
 			throw new CalendifyException(403, "Please login and try again");
 		}
 	}
